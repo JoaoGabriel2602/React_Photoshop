@@ -3,56 +3,280 @@
 }
 
 body {
-  margin: 0%;
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  font-size: 14px;
 }
 
+/* ---------- Layout geral ---------- */
 .container {
   display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-rows: 1fr auto;
-  grid-template-areas: 
-    "image sidebar"
-    "slider sidebar";
+  grid-template-columns: auto 1fr 260px;
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas:
+    "topbar  topbar  topbar"
+    "tools   stage   sidebar"
+    "tools   slider  sidebar";
   height: 100vh;
   width: 100vw;
+  overflow: hidden;
   background-color: #dadada;
 }
 
-.main-image {
-  grid-area: image;
-  background-image: url('assets/image.png');
-  width: 100%;
-  height: 100%;
-  background-position: top center;
-  background-size: contain;
-  background-repeat: no-repeat;
+/* ---------- Barra superior ---------- */
+.topbar {
+  grid-area: topbar;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: hsl(265, 10%, 86%);
+  border-bottom: 1px solid hsl(265, 10%, 56%);
 }
 
+.topbar-title {
+  margin-right: auto;
+}
+
+.topbar-button {
+  cursor: pointer;
+  border: 1px solid hsl(265, 10%, 56%);
+  border-radius: 6px;
+  background-color: hsl(265, 10%, 94%);
+  padding: 0.4rem 0.8rem;
+  transition: background-color 150ms;
+}
+
+.topbar-button:hover:not(:disabled) {
+  background-color: hsl(265, 0%, 76%);
+}
+
+.topbar-button.primary {
+  background-color: hsl(265, 0%, 56%);
+  color: white;
+}
+
+.topbar-button.primary:hover {
+  background-color: hsl(265, 0%, 46%);
+}
+
+.topbar-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---------- Barra de ferramentas (esquerda) ---------- */
+.toolbar {
+  grid-area: tools;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 150px;
+  padding: 0.75rem;
+  background-color: hsl(265, 10%, 86%);
+  border-right: 1px solid hsl(265, 10%, 56%);
+}
+
+.tool-button {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background-color: hsl(265, 10%, 94%);
+  padding: 0.6rem;
+}
+
+.tool-button:hover {
+  background-color: hsl(265, 10%, 76%);
+}
+
+.tool-button.active {
+  border-color: hsl(265, 10%, 40%);
+  background-color: hsl(265, 10%, 70%);
+  font-weight: 600;
+}
+
+.tool-icon {
+  font-size: 1.2rem;
+}
+
+.tool-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.tool-field input[type='color'] {
+  width: 100%;
+  height: 2rem;
+  padding: 0;
+  cursor: pointer;
+}
+
+.tool-field input[type='range'] {
+  cursor: pointer;
+}
+
+/* ---------- Área da imagem ---------- */
+.stage-area {
+  grid-area: stage;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* "papel" liso, sem textura (áreas apagadas aparecem brancas na tela) */
+.stage {
+  position: relative;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+  background-color: #fff;
+}
+
+/* todas as camadas ficam empilhadas uma sobre a outra */
+.layer-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* camada invisível que recebe o mouse (acima de todos os canvases) */
+.stage-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 9999;
+  cursor: none;
+  touch-action: none; /* evita rolar a página ao desenhar no celular */
+}
+
+.brush-cursor {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 50%;
+  border: 1px solid #000;
+  box-shadow: 0 0 0 1px #fff;
+  pointer-events: none;
+}
+
+/* ---------- Barra lateral direita ---------- */
 .sidebar {
   grid-area: sidebar;
-  background-color: hsl(265, 100%, 86%);
-  border-left: 1px solid hsl(265, 100%, 56%);
+  background-color: hsl(265, 10%, 86%);
+  border-left: 1px solid hsl(265, 10%, 56%);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  overflow-y: auto;
+}
+
+.panel-title {
+  margin: 0;
+  padding: 0.6rem 1rem;
+  font-size: 0.9rem;
+  background-color: hsl(265, 10%, 78%);
+  border-bottom: 1px solid hsl(265, 10%, 56%);
+}
+
+.adjustments {
   display: flex;
   flex-direction: column;
   align-items: stretch;
 }
 
+/* ---------- Painel de camadas ---------- */
+.layers-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-bottom: 0.75rem;
+}
+
+.layers-panel .tool-field {
+  padding: 0 1rem;
+}
+
+.layers-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.layer-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.3rem 0.75rem;
+  cursor: pointer;
+  border-bottom: 1px solid hsl(265, 10%, 76%);
+}
+
+.layer-row:hover {
+  background-color: hsl(265, 10%, 80%);
+}
+
+.layer-row.active {
+  background-color: hsl(265, 10%, 66%);
+  font-weight: 600;
+}
+
+.layer-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.icon-button {
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  padding: 0.2rem 0.3rem;
+  font-size: 0.8rem;
+}
+
+.layers-actions {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0 1rem;
+}
+
+.layers-actions .topbar-button {
+  flex: 1;
+}
+
+/* ---------- Itens de ajuste (já existiam) ---------- */
 .sidebar-item {
   cursor: pointer;
   border: none;
   outline: none;
-  background-color: hsl(265, 100%, 86%);
+  background-color: hsl(265, 10%, 86%);
   padding: 1rem;
   position: relative;
   transition: background-color 150ms;
 }
 
 .sidebar-item:hover, .sidebar-item:focus {
-  background-color: hsl(265, 100%, 76%);
+  background-color: hsl(265, 10%, 76%);
+}
+
+.sidebar-item.active {
+  background-color: hsl(265, 10%, 70%);
+  font-weight: 600;
 }
 
 .sidebar-item:active {
-  background-color: hsl(265, 100%, 70%);
+  background-color: hsl(265, 10%, 70%);
 }
 
 .sidebar-item::after {
@@ -62,17 +286,17 @@ body {
   left: 10%;
   bottom: 0;
   height: 1px;
-  background-color: hsl(265, 100%, 46%);
+  background-color: hsl(265, 10%, 46%);
 }
 
 .sidebar-item:last-child::after {
   display: none;
 }
 
+/* ---------- Slider de ajuste ---------- */
 .slider-container {
   grid-area: slider;
-  margin-top: 2rem;
-  padding: 2rem;
+  padding: 1rem 2rem;
 }
 
 .slider {
