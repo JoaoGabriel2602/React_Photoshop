@@ -1,19 +1,20 @@
-// onCommit (opcional): chamado quando o usuário SOLTA o slider (mouse/toque)
-// ou termina de usar as setas do teclado. É nesse momento que a mudança entra
-// no histórico de desfazer, em vez de a cada pixel arrastado.
-export default function Slider({min, max, value, handleChange, onCommit}) {
+export default function Slider({ label, min, max, value, unit = '', onChange, onCommit }) {
   return (
-    <div className="slider-container">
+    <label className="slider-field">
+      <span className="slider-head">
+        <span>{label}</span>
+        <output>{value}{unit}</output>
+      </span>
       <input
         type="range"
-        className="slider"
+        className="glass-range"
         min={min}
         max={max}
         value={value}
-        onChange={handleChange}
+        onChange={(event) => onChange(Number(event.target.value))}
         onPointerUp={onCommit}
         onKeyUp={onCommit}
-       />
-    </div>
+      />
+    </label>
   )
 }

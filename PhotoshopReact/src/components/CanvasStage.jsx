@@ -84,7 +84,7 @@ export default function CanvasStage({
   useLayoutEffect(() => {
     const area = areaRef.current
     const update = () => {
-      const padding = 32
+      const padding = 96
       const fit = Math.min(
         (area.clientWidth - padding) / width,
         (area.clientHeight - padding) / height,
