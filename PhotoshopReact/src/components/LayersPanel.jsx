@@ -1,3 +1,6 @@
+import Icon from './Icon'
+import Slider from './Slider'
+
 export default function LayersPanel({
   layers,
   activeLayerId,
@@ -17,7 +20,7 @@ export default function LayersPanel({
   const topToBottom = [...layers].reverse()
 
   return (
-    <section className="layers-panel">
+    <section className="glass panel layers-panel">
       <h3 className="panel-title">Camadas</h3>
 
       <ul className="layers-list">
@@ -35,7 +38,7 @@ export default function LayersPanel({
                 onToggleVisible(layer.id)
               }}
             >
-              {layer.visible}
+              <Icon name={layer.visible ? 'eye' : 'eyeOff'} size={16} />
             </button>
 
             <span
@@ -54,7 +57,7 @@ export default function LayersPanel({
                 onMove(layer.id, 1)
               }}
             >
-              ▲
+              <Icon name="up" size={16} />
             </button>
             <button
               className="icon-button"
@@ -64,34 +67,33 @@ export default function LayersPanel({
                 onMove(layer.id, -1)
               }}
             >
-              ▼
+              <Icon name="down" size={16} />
             </button>
           </li>
         ))}
       </ul>
 
-      <div className="layers-actions">
-        <button className="topbar-button" onClick={onAdd}>
-          Novo
+      <div className="button-row">
+        <button className="btn" onClick={onAdd}>
+          <Icon name="plus" size={16} />
+          Nova
         </button>
-        <button className="topbar-button" onClick={onDelete} disabled={layers.length <= 1}>
+        <button className="btn" onClick={onDelete} disabled={layers.length <= 1}>
+          <Icon name="trash" size={16} />
           Excluir
         </button>
       </div>
 
       {activeLayer && (
-        <label className="tool-field">
-          Opacidade: {activeLayer.opacity}%
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={activeLayer.opacity}
-            onChange={(event) => onOpacityChange(Number(event.target.value))}
-            onPointerUp={onOpacityCommit}
-            onKeyUp={onOpacityCommit}
-          />
-        </label>
+        <Slider
+          label="Opacidade"
+          min={0}
+          max={100}
+          value={activeLayer.opacity}
+          unit="%"
+          onChange={onOpacityChange}
+          onCommit={onOpacityCommit}
+        />
       )}
     </section>
   )

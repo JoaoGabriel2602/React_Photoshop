@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import './App.css'
-import Slider from './components/Slider'
-import SidebarItem from './components/SidebarItem'
-import TopBar from './components/TopBar'
-import Toolbar from './components/Toolbar'
-import LayersPanel from './components/LayersPanel'
+import HistoryBar from './components/HistoryBar'
+import ToolMenu from './components/ToolMenu'
+import LayersPanel from './components/LayersPanel.jsx'
+import EffectsPanel from './components/EffectsPanel'
+import FilePanel from './components/FilePanel.jsx'
 import CanvasStage from './components/CanvasStage'
 import { createDefaultOptions } from './utils/filters'
 import {
@@ -13,7 +13,7 @@ import {
   flattenLayers,
   getDocSizeForImage,
   loadImageFromFile,
-} from './utils/canvas'
+} from './utils/canvas.js'
 import { canRedo, canUndo, createHistory, pushSnapshot } from './utils/history'
 
 // Cada camada guarda só as PROPRIEDADES. Os pixels ficam no <canvas> dela.
@@ -48,9 +48,6 @@ function App() {
   const [color, setColor] = useState('#e63946')
   const [size, setSize] = useState(8)
 
-  // Sliders de filtro (o mesmo conceito do projeto original)
-  const [selectedOptionIndex, setSelectedOptionIndex] = useState(0)
-
   // Registro dos <canvas> reais de cada camada: { idDaCamada: <canvas> }
   const canvasRefs = useRef({})
   const displayScaleRef = useRef(1)
@@ -65,7 +62,6 @@ function App() {
   }, [])
 
   const activeLayer = layers.find((layer) => layer.id === activeLayerId) ?? layers[0]
-  const selectedOption = activeLayer.options[selectedOptionIndex]
 
   // ---------------------------------------------------------------
   // Histórico (desfazer / refazer)
@@ -210,7 +206,6 @@ function App() {
   function openImageAsDocument(img) {
     const layer = createLayer({ type: 'image', image: img }, 'Imagem')
     applyState({ doc: getDocSizeForImage(img), layers: [layer], activeLayerId: layer.id })
-    setSelectedOptionIndex(0)
   }
 
   async function handleOpenImage(file) {
@@ -299,36 +294,20 @@ function App() {
     if (name && name.trim()) updateLayer(id, { name: name.trim() })
   }
 
-  // ---------- Sliders de filtro (agora por camada) ----------
+  // ---------- Efeitos (sliders de filtro, por camada) ----------
 
-  function handleSliderChange({ target }) {
-    const options = activeLayer.options.map((option, index) =>
-      index === selectedOptionIndex ? { ...option, value: Number(target.value) } : option,
-    )
-    updateLayer(activeLayer.id, { options }, { record: false }) // entra no histórico ao soltar
+  // Arrastar o slider muda ao vivo; só entra no histórico quando o usuário solta.
+  function handleEffectChange(index, value) {
+    const options = activeLayer.options.map((option, i) => (i === index ? { ...option, value } : option))
+    updateLayer(activeLayer.id, { options }, { record: false })
+  }
+
+  function handleResetEffects() {
+    updateLayer(activeLayer.id, { options: createDefaultOptions() })
   }
 
   return (
-    <div className="container">
-      <TopBar
-        onOpenImage={handleOpenImage}
-        onImportLayer={handleImportLayer}
-        onDownload={handleDownload}
-        onUndo={undo}
-        onRedo={redo}
-        canUndo={historyFlags.canUndo}
-        canRedo={historyFlags.canRedo}
-      />
-
-      <Toolbar
-        tool={tool}
-        onToolChange={setTool}
-        color={color}
-        onColorChange={setColor}
-        size={size}
-        onSizeChange={setSize}
-      />
-
+    <div className="app">
       <CanvasStage
         width={doc.width}
         height={doc.height}
@@ -344,7 +323,9 @@ function App() {
         onStrokeEnd={handleStrokeEnd}
       />
 
-      <div className="sidebar">
+      <HistoryBar onUndo={undo} onRedo={redo} canUndo={historyFlags.canUndo} canRedo={historyFlags.canRedo} />
+
+      <aside className="sidebar">
         <LayersPanel
           layers={layers}
           activeLayerId={activeLayer.id}
@@ -358,25 +339,24 @@ function App() {
           onOpacityCommit={commitCurrent}
         />
 
-        <h3 className="panel-title">Ajustes de “{activeLayer.name}”</h3>
-        <div className="adjustments">
-          {activeLayer.options.map((option, index) => (
-            <SidebarItem
-              key={index}
-              name={option.name}
-              active={index === selectedOptionIndex}
-              handleClick={() => setSelectedOptionIndex(index)}
-            />
-          ))}
-        </div>
-      </div>
+        <EffectsPanel
+          layerName={activeLayer.name}
+          options={activeLayer.options}
+          onChange={handleEffectChange}
+          onCommit={commitCurrent}
+          onReset={handleResetEffects}
+        />
 
-      <Slider
-        min={selectedOption.range.min}
-        max={selectedOption.range.max}
-        value={selectedOption.value}
-        handleChange={handleSliderChange}
-        onCommit={commitCurrent}
+        <FilePanel onOpenImage={handleOpenImage} onImportLayer={handleImportLayer} onDownload={handleDownload} />
+      </aside>
+
+      <ToolMenu
+        tool={tool}
+        onToolChange={setTool}
+        color={color}
+        onColorChange={setColor}
+        size={size}
+        onSizeChange={setSize}
       />
     </div>
   )
