@@ -40,6 +40,18 @@ export function drawImageContain(ctx, img, canvasWidth, canvasHeight) {
   ctx.drawImage(img, (canvasWidth - w) / 2, (canvasHeight - h) / 2, w, h)
 }
 
+// Limpa o canvas e redesenha o conteúdo "de origem" da camada:
+// fundo branco, imagem aberta ou nada (camada transparente).
+export function drawLayerSource(ctx, source, width, height) {
+  ctx.clearRect(0, 0, width, height)
+  if (source?.type === 'fill') {
+    ctx.fillStyle = source.color
+    ctx.fillRect(0, 0, width, height)
+  } else if (source?.type === 'image') {
+    drawImageContain(ctx, source.image, width, height)
+  }
+}
+
 // Junta todas as camadas visíveis em UM canvas novo (de baixo para cima),
 // aplicando opacidade e filtros de cada camada. Esse canvas é o que vira PNG.
 export function flattenLayers({ width, height, layers, canvasRefs, displayScale }) {

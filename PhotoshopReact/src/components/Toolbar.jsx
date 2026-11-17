@@ -33,7 +33,7 @@ export default function Toolbar({ tool, onToolChange, color, onColorChange, size
         <input
           type="range"
           min="1"
-          max="200"
+          max="100"
           value={size}
           onChange={(event) => onSizeChange(Number(event.target.value))}
         />

@@ -8,6 +8,7 @@ export default function LayersPanel({
   onMove,
   onRename,
   onOpacityChange,
+  onOpacityCommit,
 }) {
   const activeLayer = layers.find((layer) => layer.id === activeLayerId)
 
@@ -71,7 +72,7 @@ export default function LayersPanel({
 
       <div className="layers-actions">
         <button className="topbar-button" onClick={onAdd}>
-          Nova
+          Novo
         </button>
         <button className="topbar-button" onClick={onDelete} disabled={layers.length <= 1}>
           Excluir
@@ -87,6 +88,8 @@ export default function LayersPanel({
             max="100"
             value={activeLayer.opacity}
             onChange={(event) => onOpacityChange(Number(event.target.value))}
+            onPointerUp={onOpacityCommit}
+            onKeyUp={onOpacityCommit}
           />
         </label>
       )}

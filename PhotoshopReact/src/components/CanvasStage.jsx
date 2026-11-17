@@ -1,13 +1,20 @@
 import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { buildFilter } from '../utils/filters'
-import { drawImageContain } from '../utils/canvas'
+import { drawLayerSource } from '../utils/canvas'
 
 // ---------------------------------------------------------------
 // Uma camada = um <canvas>. Os pixels vivem DENTRO do canvas
 // (não no estado do React), por isso o React só guarda as
 // propriedades da camada (nome, opacidade, filtros...).
 // ---------------------------------------------------------------
-const LayerCanvas = memo(function LayerCanvas({ layer, width, height, zIndex, registerCanvas }) {
+const LayerCanvas = memo(function LayerCanvas({
+  layer,
+  width,
+  height,
+  zIndex,
+  registerCanvas,
+  getRestoredPixels,
+}) {
   const canvasRef = useRef(null)
   const { source } = layer
 
@@ -17,17 +24,22 @@ const LayerCanvas = memo(function LayerCanvas({ layer, width, height, zIndex, re
     return () => registerCanvas(layer.id, null)
   }, [layer.id, registerCanvas])
 
-  // Desenha o conteúdo inicial: fundo branco ou uma imagem aberta pelo usuário.
+  // Desenha o conteúdo inicial do canvas. Se esta camada está voltando por um
+  // "desfazer/refazer" (por ex. uma camada excluída que foi recuperada), usamos os
+  // pixels guardados no histórico; senão, o fundo branco / a imagem de origem.
+  // (Fazemos isso AQUI, e não no App, porque em modo dev o React remonta o
+  // componente logo depois e um redesenho apagaria os pixels restaurados.)
   useEffect(() => {
-    const ctx = canvasRef.current.getContext('2d')
-    ctx.clearRect(0, 0, width, height)
-    if (source?.type === 'fill') {
-      ctx.fillStyle = source.color
-      ctx.fillRect(0, 0, width, height)
-    } else if (source?.type === 'image') {
-      drawImageContain(ctx, source.image, width, height)
+    // willReadFrequently: guardamos os pixels (getImageData) a cada traço,
+    // então avisamos o navegador para otimizar a leitura.
+    const ctx = canvasRef.current.getContext('2d', { willReadFrequently: true })
+    const restored = getRestoredPixels(layer.id)
+    if (restored) {
+      ctx.putImageData(restored, 0, 0)
+    } else {
+      drawLayerSource(ctx, source, width, height)
     }
-  }, [source, width, height])
+  }, [layer.id, source, width, height, getRestoredPixels])
 
   return (
     <canvas
@@ -58,11 +70,14 @@ export default function CanvasStage({
   size,
   registerCanvas,
   getCanvas,
+  getRestoredPixels,
   onScaleChange,
+  onStrokeEnd,
 }) {
   const areaRef = useRef(null)
   const cursorRef = useRef(null)
   const lastPointRef = useRef(null) // último ponto do traço (null = não está desenhando)
+  const strokeLayerRef = useRef(null) // camada em que o traço atual está sendo feito
   const [scale, setScale] = useState(1)
 
   // Calcula o zoom para a imagem caber na área disponível.
@@ -143,6 +158,7 @@ export default function CanvasStage({
     ctx.restore()
 
     lastPointRef.current = point
+    strokeLayerRef.current = activeLayerId
   }
 
   function handlePointerMove(event) {
@@ -162,8 +178,11 @@ export default function CanvasStage({
     lastPointRef.current = point
   }
 
+  // Ao soltar o mouse o traço termina: avisamos o App para salvar no histórico.
   function stopDrawing() {
+    if (!lastPointRef.current) return
     lastPointRef.current = null
+    onStrokeEnd(strokeLayerRef.current)
   }
 
   function hideBrushCursor() {
@@ -181,6 +200,7 @@ export default function CanvasStage({
             height={height}
             zIndex={index}
             registerCanvas={registerCanvas}
+            getRestoredPixels={getRestoredPixels}
           />
         ))}
 

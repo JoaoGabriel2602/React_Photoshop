@@ -1,6 +1,14 @@
 import { useRef } from 'react'
 
-export default function TopBar({ onOpenImage, onImportLayer, onDownload }) {
+export default function TopBar({
+  onOpenImage,
+  onImportLayer,
+  onDownload,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
+}) {
   const inputRef = useRef(null)
   const modeRef = useRef('open') // 'open' = novo documento | 'layer' = nova camada
 
@@ -20,6 +28,15 @@ export default function TopBar({ onOpenImage, onImportLayer, onDownload }) {
   return (
     <header className="topbar">
       <strong className="topbar-title">PhotoshopReact</strong>
+
+      <button className="topbar-button" onClick={onUndo} disabled={!canUndo} title="Desfazer a última ação">
+        ↩️
+      </button>
+      <button className="topbar-button" onClick={onRedo} disabled={!canRedo} title="Refazer a ação desfeita">
+        ↪️
+      </button>
+
+      <span className="topbar-separator" />
 
       <button className="topbar-button" onClick={() => pickFile('open')}>
         Abrir imagem
