@@ -110,6 +110,7 @@
 
 .stage {
   position: relative;
+  overflow: hidden; /* o que sai do papel (ex.: ao girar) fica escondido, como no resultado final */
   border-radius: 4px;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
   background-color: #fff;
@@ -188,7 +189,7 @@
 }
 
 .tool-panel {
-  width: 230px;
+  width: 264px;
   padding: 14px;
   display: flex;
   flex-direction: column;
@@ -206,7 +207,7 @@
 
 .tool-options {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
 }
 
@@ -216,11 +217,23 @@
   flex-direction: column;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.7rem 0.4rem;
+  padding: 0.7rem 0.25rem;
+  font-size: 0.8rem;
   border: 1px solid var(--line);
   border-radius: 14px;
   background-color: var(--soft);
   transition: background-color 150ms;
+}
+
+/* "Retângulo" | "Forma livre" da ferramenta Seleção */
+.mode-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.mode-button {
+  padding: 0.55rem 0.4rem;
 }
 
 .tool-button:hover {
@@ -382,6 +395,173 @@
   border: 1px solid rgba(255, 255, 255, 0.6);
   background: radial-gradient(circle at 35% 30%, #fff, var(--text) 60%, #cdbfae);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* ---------- Ferramenta Texto ---------- */
+.stage-overlay.tool-text {
+  cursor: text;
+}
+
+/* a caixa onde o usuário digita (fica POR CIMA da camada que recebe o mouse) */
+.text-box {
+  position: absolute;
+  z-index: 10000;
+  width: 4ch;
+  min-width: 2ch;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  resize: none;
+  overflow: hidden;
+  white-space: pre;
+  caret-color: currentColor;
+  outline: 1px dashed var(--coral);
+  outline-offset: 3px;
+}
+
+.text-box:focus-visible {
+  outline: 1px dashed var(--coral);
+  outline-offset: 3px;
+}
+
+/* ---------- Ferramenta Seleção ---------- */
+.stage-overlay.tool-select {
+  cursor: crosshair;
+}
+
+/* Contorno da seleção: uma linha branca por baixo e uma preta tracejada por cima
+   (as "formigas marchando" do Paint), visíveis em qualquer fundo. */
+.selection-outline {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 9998;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.selection-outline path {
+  fill: none;
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+}
+
+.ants-base {
+  stroke: #fff;
+}
+
+.ants-dash {
+  stroke: #000;
+  stroke-dasharray: 6 6;
+  animation: ants 600ms linear infinite;
+}
+
+@keyframes ants {
+  to {
+    stroke-dashoffset: -12;
+  }
+}
+
+/* ---------- Ferramenta Girar ---------- */
+.stage-overlay.tool-rotate {
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cg stroke='white' stroke-width='4.5'%3E%3Cpath d='M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8'/%3E%3Cpath d='M21 3v5h-5'/%3E%3C/g%3E%3Cg stroke='black' stroke-width='2'%3E%3Cpath d='M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8'/%3E%3Cpath d='M21 3v5h-5'/%3E%3C/g%3E%3C/svg%3E")
+      12 12,
+    crosshair;
+}
+
+/* retângulo tracejado que gira junto + cruz no centro (o ponto de giro) */
+.rotate-guide {
+  position: absolute;
+  inset: 0;
+  z-index: 9998;
+  pointer-events: none;
+  border: 1px dashed rgba(255, 255, 255, 0.95);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.rotate-guide::before,
+.rotate-guide::after {
+  content: '';
+  position: absolute;
+  background: #fff;
+  mix-blend-mode: difference;
+}
+
+.rotate-guide::before {
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+}
+
+.rotate-guide::after {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+}
+
+/* ---------- Barra "Aplicar / Cancelar" (recorte e rotação) ---------- */
+.stage-actions {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: max-content;
+  max-width: min(520px, calc(100% - 200px));
+  padding: 0.4rem 0.6rem;
+  border-radius: 16px;
+}
+
+.stage-actions-info {
+  padding: 0 0.4rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Campos extras do menu de ferramentas ---------- */
+.tool-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.select-input {
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background-color: var(--soft);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.select-input option {
+  background: #2a2a2a;
+  color: var(--text);
+}
+
+.check-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.check-field input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--coral);
 }
 
 /* Barras de rolagem discretas */

@@ -8,11 +8,14 @@ import FilePanel from './components/FilePanel.jsx'
 import CanvasStage from './components/CanvasStage'
 import { createDefaultOptions } from './utils/filters'
 import {
+  FONT_OPTIONS,
+  cropCanvasToImageData,
   downloadCanvas,
   drawLayerSource,
   flattenLayers,
   getDocSizeForImage,
   loadImageFromFile,
+  rotateCanvasToImageData,
 } from './utils/canvas.js'
 import { canRedo, canUndo, createHistory, pushSnapshot } from './utils/history'
 
@@ -44,9 +47,13 @@ function App() {
   const [activeLayerId, setActiveLayerId] = useState(initial.activeLayerId)
 
   // Ferramentas
-  const [tool, setTool] = useState('pencil') // 'pencil' | 'eraser'
+  const [tool, setTool] = useState('pencil') // 'pencil' | 'eraser' | 'text' | 'select' | 'rotate'
   const [color, setColor] = useState('#e63946')
   const [size, setSize] = useState(8)
+  const [fontSize, setFontSize] = useState(48)
+  const [fontFamily, setFontFamily] = useState(FONT_OPTIONS[0].value)
+  const [selectMode, setSelectMode] = useState('rect') // seleção: 'rect' (Retângulo) | 'free' (Forma livre)
+  const [rotateAll, setRotateAll] = useState(false) // girar só a camada ativa ou todas
 
   // Registro dos <canvas> reais de cada camada: { idDaCamada: <canvas> }
   const canvasRefs = useRef({})
@@ -229,6 +236,42 @@ function App() {
     }
   }
 
+  // ---------- Recortar e girar ----------
+
+  // Guarda no histórico um estado em que os pixels de algumas camadas foram
+  // trocados (recorte/rotação) e já aplica o resultado nos <canvas>.
+  // É o mesmo caminho do desfazer/refazer, por isso o histórico funciona igual.
+  function commitPixels(state, pixelUpdates) {
+    commit(state, pixelUpdates)
+    const history = historyRef.current
+    restoreSnapshot(history.stack[history.index])
+  }
+
+  // Recorta o DOCUMENTO inteiro: todas as camadas ficam com o tamanho do retângulo.
+  function handleCropApply(rect) {
+    const current = stateRef.current
+    const pixels = {}
+    for (const layer of current.layers) {
+      const canvas = canvasRefs.current[layer.id]
+      if (canvas) pixels[layer.id] = cropCanvasToImageData(canvas, rect)
+    }
+    commitPixels({ ...current, doc: { width: rect.width, height: rect.height } }, pixels)
+  }
+
+  // Gira a camada ativa (ou todas) em torno do centro do documento.
+  function handleRotateApply(degrees) {
+    const current = stateRef.current
+    const targets = rotateAll
+      ? current.layers
+      : current.layers.filter((layer) => layer.id === current.activeLayerId)
+    const pixels = {}
+    for (const layer of targets) {
+      const canvas = canvasRefs.current[layer.id]
+      if (canvas) pixels[layer.id] = rotateCanvasToImageData(canvas, degrees)
+    }
+    commitPixels(current, pixels)
+  }
+
   // ---------- Baixar imagem ----------
 
   function handleDownload() {
@@ -316,11 +359,18 @@ function App() {
         tool={tool}
         color={color}
         size={size}
+        fontSize={fontSize}
+        fontFamily={fontFamily}
+        selectMode={selectMode}
+        rotateAll={rotateAll}
+        restoreTick={restoreTick}
         registerCanvas={registerCanvas}
         getCanvas={getCanvas}
         getRestoredPixels={getRestoredPixels}
         onScaleChange={handleScaleChange}
         onStrokeEnd={handleStrokeEnd}
+        onCropApply={handleCropApply}
+        onRotateApply={handleRotateApply}
       />
 
       <HistoryBar onUndo={undo} onRedo={redo} canUndo={historyFlags.canUndo} canRedo={historyFlags.canRedo} />
@@ -357,6 +407,14 @@ function App() {
         onColorChange={setColor}
         size={size}
         onSizeChange={setSize}
+        fontSize={fontSize}
+        onFontSizeChange={setFontSize}
+        fontFamily={fontFamily}
+        onFontFamilyChange={setFontFamily}
+        selectMode={selectMode}
+        onSelectModeChange={setSelectMode}
+        rotateAll={rotateAll}
+        onRotateAllChange={setRotateAll}
       />
     </div>
   )

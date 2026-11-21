@@ -74,6 +74,66 @@ export function flattenLayers({ width, height, layers, canvasRefs, displayScale 
   return out
 }
 
+// ---------------------------------------------------------------
+// Texto
+// ---------------------------------------------------------------
+
+// Altura de cada linha, em múltiplos do tamanho da fonte. A caixa de texto
+// na tela usa o MESMO valor, para o texto cair onde o usuário viu.
+export const TEXT_LINE_HEIGHT = 1.2
+
+export const FONT_OPTIONS = [
+  { label: 'Arial', value: 'Arial, Helvetica, sans-serif' },
+  { label: 'Georgia', value: 'Georgia, serif' },
+  { label: 'Courier New', value: '"Courier New", monospace' },
+  { label: 'Impact', value: 'Impact, "Arial Black", sans-serif' },
+]
+
+// Escreve um texto (pode ter várias linhas) no canvas, com o canto
+// superior esquerdo em (x, y).
+export function drawText(ctx, { text, x, y, fontSize, color, fontFamily }) {
+  ctx.save()
+  ctx.globalCompositeOperation = 'source-over'
+  ctx.fillStyle = color
+  ctx.font = `${fontSize}px ${fontFamily}`
+  ctx.textBaseline = 'middle' // o meio da linha coincide com o da caixa de texto do HTML
+  const lineHeight = fontSize * TEXT_LINE_HEIGHT
+  text.split('\n').forEach((line, i) => {
+    ctx.fillText(line, x, y + (i + 0.5) * lineHeight)
+  })
+  ctx.restore()
+}
+
+// ---------------------------------------------------------------
+// Recortar e girar (devolvem um ImageData novo; o canvas original não muda)
+// ---------------------------------------------------------------
+
+// Copia só o retângulo { x, y, width, height } de um canvas.
+export function cropCanvasToImageData(canvas, { x, y, width, height }) {
+  const out = document.createElement('canvas')
+  out.width = width
+  out.height = height
+  const ctx = out.getContext('2d', { willReadFrequently: true })
+  ctx.drawImage(canvas, -x, -y)
+  return ctx.getImageData(0, 0, width, height)
+}
+
+// Gira o conteúdo do canvas em torno do centro, mantendo o tamanho do canvas
+// (o que sair para fora é cortado; o que sobrar fica transparente).
+export function rotateCanvasToImageData(canvas, degrees) {
+  const { width, height } = canvas
+  const out = document.createElement('canvas')
+  out.width = width
+  out.height = height
+  const ctx = out.getContext('2d', { willReadFrequently: true })
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  ctx.translate(width / 2, height / 2)
+  ctx.rotate((degrees * Math.PI) / 180)
+  ctx.drawImage(canvas, -width / 2, -height / 2)
+  return ctx.getImageData(0, 0, width, height)
+}
+
 // Faz o navegador baixar um canvas como arquivo PNG.
 export function downloadCanvas(canvas, filename = 'imagem-editada.png') {
   canvas.toBlob((blob) => {
