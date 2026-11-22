@@ -1,6 +1,6 @@
 import Slider from './Slider'
 
-// Nomes em português (as chaves são o `property` de cada opção em utils/filters.js)
+// Traduz as propriedades dos filtros para os nomes exibidos no painel.
 const LABELS = {
   brightness: 'Brilho',
   contrast: 'Contraste',
@@ -16,6 +16,7 @@ export default function EffectsPanel({ layerName, options, onChange, onCommit, o
     <section className="glass panel effects-panel">
       <h3 className="panel-title">Efeitos de “{layerName}”</h3>
 
+      {/* Cada filtro vira um slider, e suas mudanças são enviadas ao App. */}
       <div className="effects-list">
         {options.map((option, index) => (
           <Slider
@@ -31,6 +32,7 @@ export default function EffectsPanel({ layerName, options, onChange, onCommit, o
         ))}
       </div>
 
+      {/* O App restaura os valores padrão da camada ativa. */}
       <button className="btn" onClick={onReset}>
         Redefinir efeitos
       </button>

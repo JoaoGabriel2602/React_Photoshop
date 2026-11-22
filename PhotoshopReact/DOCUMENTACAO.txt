@@ -1,0 +1,342 @@
+DOCUMENTACAO DO PROJETO PHOTOSHOP REACT
+========================================
+
+1. VISAO GERAL
+--------------
+
+Este projeto e um editor de imagens feito com React e Vite. A imagem e
+representada por um documento (o tamanho do papel) e por uma ou mais camadas.
+O usuario pode desenhar, apagar, escrever, selecionar e mover partes da imagem,
+girar e recortar o documento, aplicar efeitos, organizar camadas e exportar o
+resultado como PNG.
+
+O fluxo geral e:
+
+  index.html
+      -> src/main.jsx
+          -> src/App.jsx
+              -> componentes da interface
+              -> funcoes de processamento e historico em src/utils/
+
+O App e o ponto central: guarda o estado do editor e conecta os componentes.
+Os componentes apresentam a interface e notificam o App sobre as acoes do
+usuario. Os utilitarios fazem operacoes reutilizaveis sobre imagens, filtros e
+historico.
+
+
+2. COMO EXECUTAR
+----------------
+
+Os comandos definidos em package.json sao:
+
+  npm run dev      Inicia o servidor de desenvolvimento do Vite.
+  npm run build    Gera a versao de producao.
+  npm run preview  Abre localmente a versao de producao gerada.
+  npm run lint     Verifica o codigo com Oxlint.
+
+O projeto usa React e React DOM na interface, e Vite para desenvolvimento e
+geracao da aplicacao. A configuracao em vite.config.js habilita o plugin do
+React.
+
+
+3. ENTRADA DA APLICACAO
+-----------------------
+
+index.html
+  Contem a estrutura HTML inicial. O elemento <div id="root"> e o local em que
+  o React monta a interface. O arquivo tambem carrega src/main.jsx como modulo.
+
+src/main.jsx
+  Importa os estilos globais de index.css e o componente principal App. A funcao
+  createRoot conecta o React ao elemento "root", e StrictMode envolve a
+  aplicacao para ajudar a identificar problemas durante o desenvolvimento.
+
+src/App.jsx
+  E o componente que coordena o editor. Monta a area da imagem, barra de
+  historico, painel lateral e menu de ferramentas. Tambem fornece propriedades e
+  funcoes aos componentes filhos para que eles possam consultar o estado e
+  solicitar alteracoes.
+
+
+4. ESTADO CENTRAL DO EDITOR (APP)
+---------------------------------
+
+O App mantem os dados que definem o documento:
+
+  doc
+    Largura e altura do papel em pixels.
+
+  layers
+    Lista de camadas. Cada camada possui identificador, nome, visibilidade,
+    opacidade, configuracoes de efeitos e uma origem (por exemplo, uma imagem,
+    uma cor de preenchimento ou nenhuma origem, para uma camada transparente).
+
+  activeLayerId
+    Identifica a camada selecionada. Desenho, texto e varios ajustes sao
+    aplicados a ela.
+
+O App tambem guarda as configuracoes das ferramentas: ferramenta atual, cor,
+tamanho do pincel, fonte e tamanho do texto, modo de selecao e escolha de girar
+uma camada ou todas.
+
+Os pixels desenhados nao ficam no estado React: cada camada possui um elemento
+<canvas> proprio. O React guarda as propriedades das camadas, enquanto o canvas
+guarda os pixels. Essa separacao permite que os desenhos sejam feitos
+diretamente no canvas sem reconstruir o estado React a cada movimento do mouse.
+
+O App usa referencias (refs) para localizar os canvases por identificador de
+camada. O CanvasStage registra e remove esses canvases quando eles aparecem ou
+saem da tela. O App pode entao ler seus pixels para o historico, recorte,
+rotacao ou exportacao.
+
+O stateRef acompanha o estado mais recente do documento. Ele e importante para
+acoes assincronas, como abrir uma imagem, e para callbacks que poderiam usar uma
+versao antiga do estado.
+
+Principais responsabilidades do App:
+
+  - Criar o documento branco inicial de 800 x 600 pixels e sua camada Fundo.
+  - Controlar a selecao de ferramentas e da camada ativa.
+  - Coordenar abertura e importacao de imagens.
+  - Criar, remover, renomear, reordenar, ocultar e ajustar camadas.
+  - Atualizar efeitos e opacidade, incluindo mudancas ao vivo nos sliders.
+  - Guardar e restaurar snapshots para desfazer e refazer.
+  - Executar recortes, rotacoes e exportacao.
+
+
+5. COMPONENTES
+--------------
+
+src/components/CanvasStage.jsx
+  E a area de trabalho e a parte responsavel pela interacao direta com a imagem.
+  Para cada camada, cria um LayerCanvas, que contem os pixels daquela camada.
+  Os canvases sao empilhados na ordem das camadas: o indice zero fica embaixo.
+  A lista do painel e mostrada na ordem inversa, de cima para baixo.
+
+  Uma camada e inicializada a partir da origem (preenchimento, imagem ou
+  transparencia), a menos que existam pixels restaurados pelo historico. O
+  componente informa ao App qual elemento canvas pertence a cada camada.
+  Visibilidade, opacidade e filtros sao aplicados na apresentacao dos canvases.
+
+  A area de trabalho calcula o zoom para que o documento caiba na tela. As
+  coordenadas dos eventos do mouse sao convertidas de pixels da tela para pixels
+  reais do documento. Assim, o desenho e as selecoes permanecem proporcionais
+  mesmo quando o zoom muda.
+
+  As interacoes sao selecionadas de acordo com a ferramenta:
+
+    Lapis:
+      Desenha linhas e tambem um circulo no clique inicial, para que um clique
+      simples produza um ponto. Ao terminar o movimento, envia os pixels da
+      camada ao App para serem salvos no historico.
+
+    Borracha:
+      Usa o mesmo fluxo do lapis, mas configura o canvas para remover pixels e
+      deixar a area transparente.
+
+    Texto:
+      Um clique abre uma caixa de texto sobre a imagem. "Aplicar" desenha o
+      conteudo na camada ativa usando a fonte, tamanho e cor escolhidos.
+      "Cancelar" descarta o texto que ainda nao foi aplicado.
+
+    Selecao:
+      Permite criar uma selecao retangular ou de forma livre. Arrastar dentro
+      de uma selecao pronta move seu conteudo na camada ativa. A barra superior
+      permite desmarcar, apagar a area selecionada ou recortar o documento para
+      os limites da selecao. Apagar deixa transparente, exceto em uma camada de
+      preenchimento, onde restaura a cor de fundo.
+
+    Girar:
+      Arrastar ao redor do centro mostra uma previa visual. "Aplicar" envia o
+      angulo ao App, que gira a camada ativa ou todas as camadas, conforme a
+      opcao escolhida. "Cancelar" remove a previa sem alterar os pixels.
+
+  O CanvasStage informa ao App quando um traco ou texto foi concluido. Para
+  recorte e rotacao, chama funcoes recebidas por propriedades. Portanto, o
+  componente executa as interacoes visuais e o App coordena as alteracoes
+  persistentes no documento e no historico.
+
+src/components/ToolMenu.jsx
+  Mostra um botao que abre ou fecha o menu de ferramentas. Permite escolher
+  lapis, borracha, texto, selecao ou rotacao. Conforme a ferramenta ativa,
+  apresenta controles de cor, tamanho do pincel, fonte, tamanho do texto,
+  formato da selecao ou rotacao de todas as camadas.
+
+  O estado "aberto ou fechado" pertence ao proprio menu. As configuracoes que
+  afetam o editor sao mantidas no App; o menu as recebe e chama callbacks para
+  atualiza-las.
+
+src/components/LayersPanel.jsx
+  Exibe as camadas em ordem visual de cima para baixo e destaca a camada ativa.
+  Permite selecionar uma camada, alternar sua visibilidade, move-la para cima
+  ou para baixo, renomea-la com duplo clique, criar uma nova ou excluir a ativa.
+  Tambem apresenta o controle de opacidade da camada selecionada.
+
+  O painel nao altera diretamente a lista: chama funcoes do App, que atualiza o
+  estado e registra a acao no historico quando necessario.
+
+src/components/EffectsPanel.jsx
+  Exibe os ajustes da camada ativa: brilho, contraste, saturacao, tons de cinza,
+  sepia, matiz e desfoque. Os valores e os limites dos controles vem das
+  opcoes daquela camada; os nomes apresentados ao usuario sao traduzidos para
+  portugues. O botao "Redefinir efeitos" restaura os valores padrao.
+
+src/components/FilePanel.jsx
+  Apresenta os comandos para abrir uma imagem como novo documento, importar uma
+  imagem como nova camada e exportar o resultado como PNG.
+
+  O componente reutiliza um unico campo de selecao de arquivo. Guarda se a
+  proxima escolha deve abrir um documento ou importar uma camada e chama o
+  callback correspondente do App. Limpa o campo depois da escolha para permitir
+  selecionar novamente o mesmo arquivo.
+
+src/components/HistoryBar.jsx
+  Apresenta os botoes de desfazer e refazer. O App fornece as funcoes executadas
+  e informa se cada operacao esta disponivel; o componente desativa os botoes
+  quando nao ha passo para desfazer ou refazer.
+
+src/components/Slider.jsx
+  E um controle reutilizavel para valores numericos. Mostra o nome do ajuste, o
+  valor atual e sua unidade, e comunica mudancas ao componente que o utiliza.
+  Ao soltar o controle ou terminar a interacao pelo teclado, chama onCommit.
+  Essa separacao permite mostrar alteracoes ao vivo e salvar um unico passo no
+  historico ao final da interacao.
+
+src/components/Icon.jsx
+  Desenha icones SVG simples a partir de nomes, como "pencil", "layers" ou
+  "download". E utilizado pelos botoes dos demais componentes para manter uma
+  representacao consistente.
+
+
+6. UTILITARIOS
+--------------
+
+src/utils/canvas.js
+  Reune operacoes de imagem e canvas usadas pelo App e pelo CanvasStage.
+
+  - loadImage e loadImageFromFile carregam uma imagem e retornam uma Promise.
+    A versao de arquivo cria uma URL temporaria e a revoga depois do
+    carregamento.
+  - getDocSizeForImage calcula as dimensoes do documento e reduz imagens grandes
+    para que o lado maior nao ultrapasse MAX_DOC_SIZE (2400 pixels).
+  - drawImageContain desenha uma imagem centralizada sem distorcer sua
+    proporcao.
+  - drawLayerSource limpa e inicializa um canvas com sua origem: cor solida,
+    imagem ou transparencia.
+  - flattenLayers compoe as camadas visiveis, de baixo para cima, aplicando
+    opacidade e filtros. O resultado e um canvas unico para exportacao.
+  - drawText escreve texto em um canvas. FONT_OPTIONS lista as fontes
+    apresentadas no menu.
+  - cropCanvasToImageData copia uma regiao do canvas sem modificar a origem.
+  - rotateCanvasToImageData cria uma versao rotacionada, mantendo as mesmas
+    dimensoes; partes que ficam fora dos limites sao cortadas.
+  - downloadCanvas converte um canvas para PNG e inicia o download.
+
+  O zoom da tela e levado em conta ao exportar o desfoque: na interface, esse
+  valor e medido em pixels da tela; no arquivo, precisa corresponder aos pixels
+  reais do documento.
+
+src/utils/filters.js
+  Define os efeitos e seus valores iniciais. createDefaultOptions cria uma nova
+  lista para cada camada, evitando compartilhar a mesma lista de configuracoes.
+  buildFilter transforma as opcoes em uma sequencia de filtros CSS/canvas,
+  utilizada tanto na visualizacao quanto na composicao do PNG.
+
+src/utils/history.js
+  Implementa o historico como uma lista de snapshots e um indice que indica o
+  estado atual. Cada snapshot guarda dimensoes, propriedades das camadas,
+  identificador da camada ativa e os pixels registrados.
+
+  pushSnapshot descarta os passos de refazer quando uma nova acao e registrada.
+  Tambem limita o historico a MAX_STEPS (30 snapshots) e MAX_BYTES (cerca de
+  400 MB de pixels). canUndo e canRedo indicam se e possivel percorrer para
+  tras ou para frente.
+
+  Os ImageData podem ser compartilhados entre snapshots quando uma acao alterou
+  somente uma camada. Isso reduz o uso de memoria. As funcoes undo e redo do
+  App escolhem o snapshot; depois que o React renderiza as camadas necessarias,
+  o App e o CanvasStage recolocam os pixels nos canvases.
+
+
+7. FLUXOS IMPORTANTES ENTRE AS PARTES
+-------------------------------------
+
+Abrir uma imagem:
+  FilePanel seleciona um arquivo e chama onOpenImage.
+  App carrega a imagem por loadImageFromFile, cria um documento com as dimensoes
+  calculadas e uma camada de imagem, e registra a mudanca no historico.
+  CanvasStage recebe a camada e desenha sua origem no canvas.
+
+Importar uma camada:
+  FilePanel chama onImportLayer.
+  App carrega a imagem, cria uma camada com o nome do arquivo e a insere acima
+  da camada ativa. A nova camada passa a ser a ativa.
+
+Desenhar ou escrever:
+  CanvasStage desenha diretamente no canvas da camada ativa.
+  Quando a acao termina, avisa o App. O App le os pixels desse canvas, combina-os
+  com as propriedades atuais e cria um snapshot de historico.
+
+Alterar opacidade ou efeitos:
+  Um painel atualiza o valor durante o movimento do controle. Essa previa nao
+  cria um snapshot a cada movimento. Ao concluir a interacao, onCommit chama o
+  App para registrar o estado final. Os efeitos sao convertidos em filtros e
+  aplicados na exibicao e na exportacao.
+
+Recortar:
+  CanvasStage define o retangulo da selecao. App copia essa area de cada camada,
+  muda as dimensoes do documento e grava um snapshot com os novos pixels.
+  Apos a atualizacao do React, as camadas recebem os pixels recortados.
+
+Girar:
+  CanvasStage apresenta a previa com uma transformacao visual. Ao aplicar,
+  App gera novos pixels para a camada ativa ou para todas as camadas e registra
+  o resultado no historico.
+
+Desfazer e refazer:
+  HistoryBar chama undo ou redo no App. O snapshot escolhido atualiza o
+  documento, as propriedades e a camada ativa. Depois da renderizacao, os
+  pixels de cada camada sao restaurados nos respectivos canvases.
+
+Exportar:
+  FilePanel chama onDownload. App usa flattenLayers para combinar as camadas
+  visiveis, respeitando sua ordem, opacidade e efeitos, e downloadCanvas salva
+  o resultado como imagem-editada.png.
+
+
+8. ESTILOS E APRESENTACAO
+-------------------------
+
+src/index.css
+  Define os estilos globais, cores por variaveis CSS, tipografia, altura da
+  pagina, aparencia inicial dos controles e foco visivel para navegacao por
+  teclado. Tambem respeita a preferencia do sistema por movimento reduzido.
+
+src/App.css
+  Define o layout do editor e os estilos dos componentes: area de trabalho,
+  canvases empilhados, menus, paineis, botoes, sliders, caixa de texto,
+  contorno da selecao, guia de rotacao e barra de acoes.
+
+Os estilos definem a apresentacao, enquanto o estado e as operacoes permanecem
+no App e nos componentes. Por exemplo, App.css posiciona a moldura da rotacao,
+mas CanvasStage controla seu angulo.
+
+
+9. ESTRUTURA DE ARQUIVOS RELACIONADA
+------------------------------------
+
+index.html                 Documento HTML inicial.
+vite.config.js             Configuracao do Vite e plugin React.
+package.json               Dependencias e comandos npm.
+src/main.jsx                Inicializacao do React.
+src/App.jsx                 Estado central e coordenacao do editor.
+src/App.css                 Estilos do layout e dos controles.
+src/index.css               Estilos globais e variaveis visuais.
+src/components/              Interface separada em componentes.
+src/utils/                   Funcoes de canvas, filtros e historico.
+src/assets/                  Imagens e recursos estaticos do projeto.
+public/                      Recursos servidos diretamente, como icones.
+
+A pasta vite-project/ que aparece no repositorio nao e usada pelo fluxo de
+entrada descrito acima: index.html carrega src/main.jsx, que importa src/App.jsx.
+Assim, a aplicacao principal documentada aqui e a que esta na raiz do projeto.
