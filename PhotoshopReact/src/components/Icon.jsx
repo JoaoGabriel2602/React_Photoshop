@@ -44,6 +44,13 @@ const PATHS = {
   ],
   rotate: ['M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8', 'M21 3v5h-5'],
   check: ['M20 6 9 17l-5-5'],
+  sparkles: [
+    'M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9Z',
+    'M19 3v4',
+    'M21 5h-4',
+    'M5 17v4',
+    'M7 19H3',
+  ],
 }
 
 export default function Icon({ name, size = 18 }) {

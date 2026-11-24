@@ -7,6 +7,7 @@ import EffectsPanel from './components/EffectsPanel'
 import FilePanel from './components/FilePanel.jsx'
 import CanvasStage from './components/CanvasStage'
 import { createDefaultOptions } from './utils/filters'
+import { generateAiImage } from './utils/aiImage'
 import {
   FONT_OPTIONS,
   cropCanvasToImageData,
@@ -223,6 +224,13 @@ function App() {
     }
   }
 
+  // Gera uma imagem por I.A. e abre da mesma forma que "Abrir imagem":
+  // o documento passa a ter o tamanho da imagem gerada. Quem chama (FilePanel)
+  // mostra o carregamento e a mensagem de erro, por isso o erro sobe sem tratamento aqui.
+  async function handleGenerateImage(prompt, size) {
+    openImageAsDocument(await generateAiImage(prompt, size))
+  }
+
   // Adiciona a imagem como uma camada nova dentro do documento atual.
   async function handleImportLayer(file) {
     try {
@@ -397,7 +405,12 @@ function App() {
           onReset={handleResetEffects}
         />
 
-        <FilePanel onOpenImage={handleOpenImage} onImportLayer={handleImportLayer} onDownload={handleDownload} />
+        <FilePanel
+          onOpenImage={handleOpenImage}
+          onImportLayer={handleImportLayer}
+          onGenerateImage={handleGenerateImage}
+          onDownload={handleDownload}
+        />
       </aside>
 
       <ToolMenu

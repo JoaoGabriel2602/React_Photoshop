@@ -7,8 +7,8 @@ DOCUMENTACAO DO PROJETO PHOTOSHOP REACT
 Este projeto e um editor de imagens feito com React e Vite. A imagem e
 representada por um documento (o tamanho do papel) e por uma ou mais camadas.
 O usuario pode desenhar, apagar, escrever, selecionar e mover partes da imagem,
-girar e recortar o documento, aplicar efeitos, organizar camadas e exportar o
-resultado como PNG.
+girar e recortar o documento, aplicar efeitos, organizar camadas, gerar imagens
+por inteligencia artificial a partir de um texto e exportar o resultado como PNG.
 
 O fluxo geral e:
 
@@ -37,6 +37,10 @@ Os comandos definidos em package.json sao:
 O projeto usa React e React DOM na interface, e Vite para desenvolvimento e
 geracao da aplicacao. A configuracao em vite.config.js habilita o plugin do
 React.
+
+A geracao de imagens por I.A. usa o servico gratuito Pollinations, que nao exige
+conta nem chave de API, mas precisa de conexao com a internet. O servico gratuito
+tem limite de pedidos e pode ficar lento em horarios de pico.
 
 
 3. ENTRADA DA APLICACAO
@@ -97,7 +101,8 @@ Principais responsabilidades do App:
 
   - Criar o documento branco inicial de 800 x 600 pixels e sua camada Fundo.
   - Controlar a selecao de ferramentas e da camada ativa.
-  - Coordenar abertura e importacao de imagens.
+  - Coordenar abertura e importacao de imagens, e a geracao de imagens por I.A.
+    (handleGenerateImage, que abre o resultado como um novo documento).
   - Criar, remover, renomear, reordenar, ocultar e ajustar camadas.
   - Atualizar efeitos e opacidade, incluindo mudancas ao vivo nos sliders.
   - Guardar e restaurar snapshots para desfazer e refazer.
@@ -182,13 +187,24 @@ src/components/EffectsPanel.jsx
   portugues. O botao "Redefinir efeitos" restaura os valores padrao.
 
 src/components/FilePanel.jsx
-  Apresenta os comandos para abrir uma imagem como novo documento, importar uma
-  imagem como nova camada e exportar o resultado como PNG.
+  Apresenta os comandos para abrir uma imagem como novo documento, gerar uma
+  imagem por I.A., importar uma imagem como nova camada e exportar o resultado
+  como PNG.
 
   O componente reutiliza um unico campo de selecao de arquivo. Guarda se a
   proxima escolha deve abrir um documento ou importar uma camada e chama o
   callback correspondente do App. Limpa o campo depois da escolha para permitir
   selecionar novamente o mesmo arquivo.
+
+  O botao "Gerar imagem com I.A." abre ou fecha um pequeno formulario com um
+  campo de texto (ate 400 caracteres) e a escolha do formato (quadrado,
+  paisagem ou retrato, vindos de AI_SIZES). Ao enviar, por clique em "Gerar" ou
+  pela tecla Enter, chama onGenerateImage (App) e espera a resposta. O
+  componente guarda o texto, o formato, o estado de carregamento e a mensagem de
+  erro. Enquanto gera, os campos e o botao ficam desativados e o botao mostra
+  "Gerando...". Se a geracao falhar, a mensagem aparece no proprio painel e o
+  texto digitado e mantido para uma nova tentativa. Se der certo, o formulario
+  fecha.
 
 src/components/HistoryBar.jsx
   Apresenta os botoes de desfazer e refazer. O App fornece as funcoes executadas
@@ -205,7 +221,7 @@ src/components/Slider.jsx
 src/components/Icon.jsx
   Desenha icones SVG simples a partir de nomes, como "pencil", "layers" ou
   "download". E utilizado pelos botoes dos demais componentes para manter uma
-  representacao consistente.
+  representacao consistente. O icone "sparkles" identifica a geracao por I.A.
 
 
 6. UTILITARIOS
@@ -235,6 +251,14 @@ src/utils/canvas.js
   O zoom da tela e levado em conta ao exportar o desfoque: na interface, esse
   valor e medido em pixels da tela; no arquivo, precisa corresponder aos pixels
   reais do documento.
+
+src/utils/aiImage.js
+  Gera uma imagem por I.A. gratuita (Pollinations, modelo FLUX), sem conta e sem
+  chave de API. generateAiImage envia o texto, baixa o resultado como arquivo
+  (fetch -> blob) e o carrega por loadImageFromFile, o mesmo caminho de uma foto
+  aberta; por isso o canvas nunca fica bloqueado para filtros e exportacao.
+  Trata limite de pedidos (429), erro de rede e tempo maximo de 90 segundos.
+  AI_SIZES lista os formatos oferecidos (quadrado, paisagem e retrato).
 
 src/utils/filters.js
   Define os efeitos e seus valores iniciais. createDefaultOptions cria uma nova
@@ -266,6 +290,13 @@ Abrir uma imagem:
   App carrega a imagem por loadImageFromFile, cria um documento com as dimensoes
   calculadas e uma camada de imagem, e registra a mudanca no historico.
   CanvasStage recebe a camada e desenha sua origem no canvas.
+
+Gerar imagem com I.A.:
+  FilePanel mostra o campo de texto e o formato; ao enviar, chama
+  onGenerateImage (App). App usa generateAiImage e abre o resultado com
+  openImageAsDocument, igual a "Abrir imagem": o documento passa a ter o tamanho
+  da imagem gerada e a acao entra no historico (da para desfazer). FilePanel
+  controla o estado de carregamento e mostra a mensagem se algo falhar.
 
 Importar uma camada:
   FilePanel chama onImportLayer.
@@ -315,7 +346,8 @@ src/index.css
 src/App.css
   Define o layout do editor e os estilos dos componentes: area de trabalho,
   canvases empilhados, menus, paineis, botoes, sliders, caixa de texto,
-  contorno da selecao, guia de rotacao e barra de acoes.
+  formulario de geracao por I.A. (.ai-form, .text-input e .ai-error), contorno
+  da selecao, guia de rotacao e barra de acoes.
 
 Os estilos definem a apresentacao, enquanto o estado e as operacoes permanecem
 no App e nos componentes. Por exemplo, App.css posiciona a moldura da rotacao,
@@ -333,7 +365,8 @@ src/App.jsx                 Estado central e coordenacao do editor.
 src/App.css                 Estilos do layout e dos controles.
 src/index.css               Estilos globais e variaveis visuais.
 src/components/              Interface separada em componentes.
-src/utils/                   Funcoes de canvas, filtros e historico.
+src/utils/                   Funcoes de canvas, filtros, historico e geracao de
+                             imagem por I.A. (aiImage.js).
 src/assets/                  Imagens e recursos estaticos do projeto.
 public/                      Recursos servidos diretamente, como icones.
 
